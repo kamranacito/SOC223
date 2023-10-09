@@ -1,0 +1,146 @@
+---
+title: "DV 4"
+author: "Kamran Acito"
+format: html
+editor: visual
+embed-resources: true
+---
+
+```{r}
+#| message: false
+library(tidyr)
+library(tidyverse)
+```
+
+## Question 1
+
+```{r}
+tv_ratings <- read_csv("https://raw.githubusercontent.com/vaiseys/dav-course/main/Data/tv_ratings.csv")
+glimpse(tv_ratings)
+```
+
+```{r}
+tv_long <- tv_ratings %>% 
+  group_by(title) %>% 
+  summarise(num_seasons = n()) %>% 
+  ungroup() %>% 
+  left_join(tv_ratings, by = "title") 
+
+tv_long <- tv_long %>% 
+  filter(num_seasons >= 5)
+```
+
+```{r}
+ggplot(data = tv_long, mapping = aes(x = seasonNumber, y = av_rating )) +
+  geom_line(aes(group = title))
+```
+
+Most of the shows are concentrated between season numbers 0-5 and an average rating of 7-9. The data is is concentrated in this area.
+
+## Question 2
+
+```{r}
+ggplot(data = tv_long, mapping = aes(x = seasonNumber, y = av_rating )) +
+  geom_line(aes(group = title), alpha = .4) +
+  facet_wrap(~ genres) 
+
+```
+
+Crime,Drama,Mystery along with Drama,Romance are the shows that tend to last longer. Their ratings vary across season. The show "Are You Afraid Of The Dark" plummeted the ratings of the Drama,Family,Fantasy genres.
+
+## Question 3
+
+```{r}
+best_rated_shows <- tv_long %>% 
+  filter(av_rating >= 9)
+view(best_rated_shows)
+```
+
+Above, I filtered the data set so that it only includes rows where the average rating is higher or equal than 9.
+
+Now lets make a bar plot for it.
+
+```{r}
+ggplot(data = best_rated_shows, mapping = aes(x = genres)) +
+  geom_bar() +
+  theme(axis.text.x = element_text( size =7)) +
+  coord_flip()
+```
+
+Above is a bar plot that sorts by genres. I put genre on the x-axis, but it was difficult to read because all of the labels were overlapping. By adding the "coord_flip" function, the x and y axis switch and makes the data easier to read. The genre with the most top rated shows is Action,Adventure,Drama.
+
+## Question 4
+
+Lets compare dramas and comedies. To begin, lets do some wrangling.
+
+```{r}
+comedies_dramas <- tv_ratings %>% 
+  mutate(is_comedy = if_else(str_detect(genres, "Comedy"), 
+                             1, 
+                             0)) %>% # If it contains the word comedy then 1, else 0
+  filter(is_comedy == 1 | genres == "Drama") %>% # Keep comedies and dramas
+  mutate(genres = if_else(genres == "Drama", # Make it so that we only have those two genres
+                          "Drama", 
+                          "Comedy"))
+
+glimpse(comedies_dramas)
+```
+
+Above is a dataset with shows that are categorized as either drama or comedies.
+
+```{r}
+ggplot(data = comedies_dramas, mapping = aes(x = av_rating, color = genres)) +
+  geom_density() +
+  labs(x = "Average Rating", y = "Density", title = "Comedies vs. Dramas Density Plot")
+```
+
+Dramas are rated higher because the peak of their curve is higher along the x-axis which represents average rating. The peak represnsts the mode of the data and as a proportion there are higher rated dramas.
+
+## Question 5
+
+Lets use the same data but use histograms.
+
+```{r}
+ggplot(data = comedies_dramas, mapping = aes(x = av_rating, fill = genres)) +
+  geom_histogram() + 
+  facet_wrap(~ genres) +
+  labs(x = "Average Rating")
+```
+
+Above I created a histogram that shows the average rating of the comedies and dramas. There are a higher count of comedies compared to dramas. The predictions was wrong, on average comedies are rated higher.
+
+```{r}
+ggplot(data = comedies_dramas, mapping = aes(x = av_rating, color = genres)) +
+  geom_freqpoly() +
+  labs(x = "Average Rating")
+```
+
+I notice that comedies have a higher count of average ratings compared to dramas. I think this is the most informative graph because it gives us a combination of histogram and density graphs.
+
+## Question 6
+
+```{r}
+ggplot(data = comedies_dramas, mapping = aes(x = av_rating, y = share)) +
+  geom_bin_2d() +
+  labs(x = "Average Rating", y = "Share")
+```
+
+There are a bunch of values around the 8 average rating mark which helps us visualize overplotting. It is not clear how many data points each block represents; however, the lighter colored blocks indicate a higher count of data points. It serves a similar purpose to the "geom_jitter" function.
+
+Using a scatterplot, we cannot differentiate each point because they all look the same. A scatterplot for this data would look something like this.
+
+```{r}
+ggplot(data = comedies_dramas, mapping = aes(x = av_rating, y = share)) +
+  geom_point() +
+  labs(x = "Average Rating", y = "Share")
+```
+
+Above, it becomes very difficult to visualize the overplotting because in the cluster of points around the average rating of 8, we do not actually know how many points are being represented
+
+```{r}
+ggplot(data = comedies_dramas, mapping = aes(x = av_rating, y = share, fill = genres)) +
+  geom_bin_2d() +
+  labs(x = "Average Rating", y = "Share")
+```
+
+Above we filled by genres which helps us visualize the average ratings in relation to share of viewership for both comedies and dramas. The outlier is a drama series is Dekalog with a share of around 27 and average rating of around 8.2

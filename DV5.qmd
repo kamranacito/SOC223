@@ -1,0 +1,179 @@
+---
+title: "DV5"
+author: "Kamran Acito"
+format: html
+editor: visual
+embed-resources: true
+---
+
+```{r}
+#| message: false
+library(tidyr)
+library(tidyverse)
+# Read in the data 
+wncaa <- read_csv("https://raw.githubusercontent.com/vaiseys/dav-course/main/Data/wncaa.csv")
+
+# Glimpse the data 
+glimpse(wncaa)
+```
+
+## Question 1
+
+```{r}
+tournaments_won <- wncaa %>%
+  filter(tourney_finish == "Champ")
+```
+
+Above is a data set that filters only for champions of each year for the wncaa data.
+
+Now lets see the percentage of tournaments each team has
+
+```{r}
+percentage_wins <- tournaments_won %>%
+  group_by(school) |> 
+  summarise(N = n()) |> 
+  mutate(percent = N / sum(N), 
+         pct = round((percent*100), 0))
+percentage_wins
+```
+
+I did this by grouping by school, summarizing, and using mutate to find the percent of wins of each school.
+
+Now, lets graph the data
+
+```{r}
+ggplot(percentage_wins, 
+       mapping = aes(x = school, 
+                     y = pct)) + 
+  geom_col(position = "dodge2", fill = "blue") +
+  scale_y_continuous(limits = c(0, 100)) +
+  coord_flip() + 
+  labs(title = "Percentage of Tournaments won by school", x = "School", y = "Tournament Win Percentage (%)", caption = "source: WNCAA")
+```
+
+Most schools have won 2-6% of tournaments; however, there are two outliers. Uconn and Tennesse have won the most championships.
+
+## Question 2
+
+```{r}
+champ_names <- unique(tournaments_won$school)
+```
+
+```{r}
+winners <- wncaa %>%
+  filter(school %in% champ_names)
+```
+
+```{r}
+ggplot(winners, 
+       mapping = aes(x = school, 
+                     y = seed, 
+                     fill = school)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(alpha = 0.3) +
+  coord_flip() +
+  labs(title = "Distribution of Seeds per School", x = "School", y = "Seed", caption = "source: WNCAA")
+```
+
+The boxplot above shows the distribution of seeds by schools that have won a championship.
+
+Now, lets reorder the distributions from highest average seed to lowest average seed so that it is easier to understand.
+
+```{r}
+winners <- winners |>   
+  group_by(school) %>%  
+  mutate(mean_seed = mean(seed)) %>% 
+  ungroup()
+```
+
+```{r}
+ggplot(winners, 
+       aes(x = reorder(school, -mean_seed), y = seed, fill = school)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(alpha = 0.3) +
+  coord_flip() +
+  labs(title = "Distribution of Seeds per School", x = "School", y = "Seed", caption = "source: WNCAA")
+```
+
+By reordering from highers average seed to lowest average seed, we can see that the range of seeds increases as the average seed increases. Schools will have outliers when they were ranked high. That being said, schools like Uconn and Tennessee have low variability because they have the most number of championships.
+
+Now, lets use "geom_violin" instead of using a boxplot to visualize our data.
+
+```{r}
+ggplot(winners, 
+       aes(x = reorder(school, -mean_seed), y = seed, fill = school)) +
+  geom_violin() +
+  coord_flip() +
+  labs(title = "Distribution of Seeds per School", x = "School", y = "Seed", caption = "source: WNCAA")
+```
+
+I think the graph with boxplots provides more information because the median, range, and outliers are all visible. The violin graph is harder see these points despite being more visually appealing. Many schools on the violin graph have similar distributions (lower seeded schools) which makes it difficult to distinguish one from another.
+
+## Question 3
+
+Now lets use a scatter plot to visualize the data from Q2.
+
+```{r}
+ggplot(winners, 
+       aes(x = reorder(school, -mean_seed), y = seed, fill = school)) +
+  geom_point() +
+  geom_jitter(alpha = 0.3) +
+  coord_flip() +
+  labs(title = "Distribution of Seeds per School", x = "School", y = "Seed", caption = "source: WNCAA")
+```
+
+The scatterplot does not show the distributions, medians, ranges, or outliers clearly. There is a large distribution of data points for each school making it very difficult to make any conclusions about the data.
+
+## Question 4
+
+Now, lets determine the average win percentage and standard deviation of these schools across all seasons.
+
+```{r}
+winners_average_sd <- winners %>%
+   group_by(school) %>% 
+  summarize(across(where(is.numeric),
+                   list(mean = mean,
+                        sd = sd)))
+```
+
+Next, lets visualize the data using a scatterplot.
+
+```{r}
+ggplot(winners_average_sd,
+        mapping = aes(x = reorder(school, reg_percent_mean, na.rm = TRUE),
+                      y = reg_percent_mean)) +
+  geom_point() +
+  coord_flip() +
+  labs(title = "Regular Season Win Percentage per School", x = "School", y = "Average Regular Season Win Percentage", caption = "source: WNCAA")
+```
+
+This graph tells us that the highest average regular season win percentage was Uconn with 91.54% and the lowest average regular season win percentage was Texas A&M with 73.99%. Most schools range between 75% and 87% with Uconn being an outlier. Their is a concentration of data points between an average regular season win percentage of 77% and 80%.
+
+Now, lets look at the standard deviation for the data.
+
+```{r}
+ggplot(winners_average_sd,
+        mapping = aes(x = reorder(school, reg_percent_mean, na.rm = TRUE),
+                      y = reg_percent_mean)) +
+  geom_pointrange(mapping = aes(ymin = reg_percent_mean - reg_percent_sd,
+       ymax = reg_percent_mean + reg_percent_sd)) +
+  coord_flip() +
+  labs(title = "Regular Season Win Percentage per School", x = "School", y = "Average Regular Season Win Percentage", caption = "source: WNCAA")
+```
+
+The school with the lowest standard deviation (smallest interval) is Texas A&M meaning that they have the lowest variation out of any tournament winning school in regular season win percentage. It ranges between. 67% and 80%.
+
+Now, Lets try using "geom_linerange" to plot the data.
+
+```{r}
+ggplot(winners_average_sd,
+        mapping = aes(x = reorder(school, reg_percent_mean, na.rm = TRUE),
+                      y = reg_percent_mean)) +
+  geom_linerange(mapping = aes(ymin = reg_percent_mean - reg_percent_sd,
+       ymax = reg_percent_mean + reg_percent_sd)) +
+  coord_flip() +
+  labs(title = "Regular Season Win Percentage per School", x = "School", y = "Average Regular Season Win Percentage", caption = "source: WNCAA")
+
+```
+
+This graph still shows the standard deviation (variability) in regular season win percentage. It provides 1 standard deviation above and below the mean. However, the big difference in this graph is that the mean is not visible on the graph.

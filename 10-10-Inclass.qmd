@@ -1,0 +1,146 @@
+---
+title: "10-10-in class"
+author: "Kamran Acito"
+format: html
+editor: visual
+embed-resources: true
+---
+
+## 10-10-In Class
+
+```{r}
+#| message: false
+library(tidyverse)
+library(moderndive)
+library(patchwork)
+library(ggthemes)
+theme_set(theme_light())
+```
+
+```{r}
+data("evals")
+glimpse(evals)
+```
+
+```{r}
+d <- evals |>
+  rename(bty = bty_avg,
+         sex = gender)
+glimpse(d)
+```
+
+```{r}
+head(d)
+```
+
+```{r}
+library(skimr)
+skim(d)
+```
+
+```{r}
+summary(d)
+```
+
+```{r}
+ggplot(data = d, 
+       mapping = aes(x = score)) +
+geom_histogram(color = "white")
+  
+```
+
+```{r}
+ggplot(data = d,
+       mapping = aes(x = bty, y = score)) +
+geom_jitter(alpha = .3)
+```
+
+```{r}
+d |> get_correlation(score ~ bty)
+d |> select(score, bty) |> cor()
+```
+
+```{r}
+mod1 <-  lm(score ~bty,
+           data = d)
+get_regression_table(mod1)
+```
+
+```{r}
+ggplot(data = d,
+       mapping = aes(x = bty,
+                     y = score)) +
+  geom_jitter(alpha = .3) +
+  geom_smooth(method = "lm",
+              se = FALSE)
+```
+
+```{r, echo=FALSE}
+ggplot(data = d,
+       mapping = aes(x = bty,
+                     y = score)) +
+  geom_jitter(alpha = .3) +
+  geom_smooth(method = "lm",
+              se = FALSE,
+              fullrange = TRUE) +
+  scale_x_continuous(limits = c(0, 8.5)) +
+  geom_vline(xintercept = 0,
+             color = "red",
+             linetype = "dotted")
+```
+
+These gives us the regression line.
+
+```{r}
+ggplot(data = d,
+       mapping = aes(x = score,
+                     y = sex)) +
+  geom_jitter(alpha = .3,
+              height = .2)
+```
+
+```{r}
+ggplot(data = d,
+       mapping = aes(x = score,
+                     y = sex)) +
+  geom_jitter(alpha = .3,
+              height = .2) +
+  geom_boxplot(coef = 0,
+               outlier.alpha = 0,
+               width = .5)
+```
+
+Without the boxplot, it was hard to differentiate the male data from female data.
+
+```{r}
+mod2 <- lm(score ~ sex,
+           data = d)
+broom::tidy(mod2)
+```
+
+```{r}
+ggplot(data = d,
+       mapping = aes(x = age,
+                     y = bty)) +
+  geom_jitter(alpha = .3) + 
+   geom_smooth(method = "lm",
+              se = FALSE) 
+```
+
+Shows beauty score in relation to age. Older professors receive lower beauty scores.
+
+```{r}
+ggplot(data = d,
+       mapping = aes(x = ethnicity,
+                     y = bty)) +
+  geom_jitter(alpha = .3,
+              height = .2) + 
+   geom_smooth(method = "lm",
+              se = FALSE) +
+  coord_flip() +
+  geom_boxplot(coef = 0,
+               outlier.alpha = 0,
+               width = .5)
+```
+
+Shows ethnicity as it relates to beauty. Not entirely sure how to interpret this data.

@@ -1,0 +1,262 @@
+---
+title: "MD5"
+author: "Kamran Acito"
+format: html
+editor: visual
+embed-resources: true
+---
+
+```{r}
+#| message: false
+library(tidyr)
+library(tidyverse)
+library(dplyr)
+```
+
+```{r}
+twitch_data <- read_csv("https://raw.githubusercontent.com/vaiseys/dav-course/main/Data/twitchdata-update.csv")
+```
+
+```{r}
+library(janitor)
+twitch_data <- clean_names(twitch_data)
+
+# Inspect new names
+colnames(twitch_data)
+```
+
+## Question 1
+
+```{r}
+five_random <- twitch_data |>
+  sample_n(size = 5) |>
+  select(channel, average_viewers, followers)
+five_random
+```
+
+From these 5 random streamers, I notice that average viewers is not necessarily correlated with the amount of followers a streamer has. For example, "StreamerHouse" has many more followers than "yamatonjp" but receives a lower amount of average viewers.
+
+```{r}
+summary_twovariables <- twitch_data |> 
+  select(channel, average_viewers, followers)
+
+summary(summary_twovariables)
+```
+
+I notice from this data that the means and medians are much smaller values compared to the maximum values for both variables. This indicates that there are strong outliers in the data. The distribution is definitely skewed because the mean is higher than the median.
+
+```{r}
+ggplot(data = twitch_data, 
+       mapping = aes(x = followers, 
+                     y = average_viewers)) +
+  geom_jitter(alpha = 0.3) +
+  labs(title = "Average Viewers vs Followers", caption = "Source: twitch_data", x = "followers", y = "average viewers")
+```
+
+This scatterplot has most of the data points concentrated around the origin. Most outliers are streamers with many followers but there are 2 outliers who have high amounts of average viewers but a low follower count.
+
+```{r}
+ggplot(twitch_data, 
+       mapping = aes(x = followers, 
+                     y = average_viewers)) +
+  geom_jitter(alpha = 0.3) +
+  labs(title = "Average Viewers vs Followers", caption = "Source: twitch_data", x = "log10 of followers", y = "log10 of average viewers") +
+  scale_x_log10() +
+  scale_y_log10()
+```
+
+After adding scale_x_log10 and scale_y_log10, the data is easier to visualize. There is now a visible positive relationship between followers and average viewers.
+
+```{r}
+twitch_data <- twitch_data %>% 
+  mutate(log_viewers = log10(average_viewers), 
+         log_followers = log10(followers))
+
+```
+
+## Question 2
+
+```{r}
+fit1 <- lm(log_viewers ~ log_followers,
+           data = twitch_data)
+
+broom::tidy(fit1)
+```
+
+```{r}
+fit1
+```
+
+\$\$1.1\^{0.59} = 1.0578 \$\$
+
+This means that a 10% increase in followers is associated with a 5.9% increase in the average number of viewers.
+
+## Question 3
+
+```{r}
+library(broom)
+
+pred_data <- augment(fit1)
+
+# glimpse our new data 
+glimpse(pred_data)
+```
+
+```{r}
+pred_data %>% 
+  ggplot(aes(x = log_followers, 
+             y = log_viewers)) +
+  geom_jitter(alpha = 0.4) + 
+  geom_line(aes(x = log_followers, 
+                y = .fitted), 
+            col = "orange") + 
+  theme_minimal() +
+  labs(subtitle = "Fitted Model and Raw Data", 
+       title = "Followers & Average Viewership", 
+       x = "log(followers)", 
+       y = "log(viewers)")
+```
+
+I think our model describes the relationship between viewers and followers well. It displays the positive trend between average viewers and followers.
+
+```{r}
+pred_data |> 
+  ggplot(aes(x = log_followers, 
+             y = .resid)) +
+  geom_jitter(alpha = 0.4) + 
+  theme_minimal() +
+  labs(subtitle = "Residual Plot from log_viewers vs log_followers", 
+       title = "Residual Plot", 
+       x = "log(followers)", 
+       y = "Residuals", 
+       caption = "Source: twitch_data")
+```
+
+Above is a graph that compares log_followers and residuals. This shows the distance from each data points to the linear model. Most of our residuals are centered around 0 meaning that there is little fluctuation. There are some outliers notably the points above 1.5 and below -1.0. These large residuals do not happen that often so our linear model is a good fit for the data and can predict average viewers for the range of our followers.
+
+## Question 4
+
+```{r}
+langauge <- twitch_data |>
+  select(channel, language, average_viewers)
+langauge
+```
+
+```{r}
+langauge |>
+  sample_n(size = 10)
+```
+
+I randomly selected 10 streamers to compare the English streamers' average viewers to the other streamers. 5 out of the 10 streamers are English speaking, that being said, their average ratings are pretty similar compared to non-English streamers apart from 2 outliers.
+
+Now lets summarize the data
+
+```{r}
+summary(langauge)
+```
+
+```{r}
+ggplot(data = langauge, 
+       mapping = aes(x = language, 
+                     fill = language)) +
+  geom_bar() +
+  coord_flip() +
+  labs(title = "Number of Twitch Channels by Language", caption = "Source: twitch_data")
+```
+
+This graph shows the number of twitch channels by language. English streamers are clearly more common compared to non-English streamers.
+
+Now lets create a data set for English and non-English streamers.
+
+```{r}
+english <- langauge |>
+  filter(language == "English")
+english
+```
+
+```{r}
+summary(english)
+```
+
+```{r}
+non_english <- langauge |>
+  filter(language != "English")
+non_english
+```
+
+```{r}
+summary(non_english)
+```
+
+The English streamers have a mean of 5113 average viewers while the non-English streamers have a mean of 4469 average viewers.
+
+Now, lets visuealize the data by comparing average viewers to language.
+
+```{r}
+ggplot(data = langauge, 
+       mapping = aes(x = language, y = average_viewers, color = language)) + 
+  geom_jitter(alpha = 0.4) + 
+  coord_flip() +
+  labs(title = "Average Viewers of Twitch Channels by Language", x = "language", y = "average viewers", caption = "Source: twitch_data") 
+```
+
+This graph compares the distributions of average viewers for each language. English has the most streamers and has the greatest range of viewership across the streamers. Most languages have an average viewership of 12500. Russian and English have a clear outlier. These outliers actually happen to be the same streamers but in different languages.
+
+## Question 5
+
+```{r}
+langauge <- twitch_data %>% 
+  mutate(language = as.factor(language), 
+         language = relevel(language, ref = "English"))
+```
+
+```{r}
+fit_lang <- lm(average_viewers ~ language,
+           data = langauge)
+
+broom::tidy(fit_lang)
+```
+
+```{r}
+
+fit_lang
+```
+
+```{r}
+twitch_data |>
+  summarize(standard_deviation = sd(average_viewers, na.rm = TRUE))
+```
+
+Fitting the model allows us to look at different coefficients for each language and compare their average viewers compared to English. There are a greater number of negative coefficient meaning that most languages have less average viewers compared to English. This helps prove our initial prediction that English streamers have more viewers.
+
+The standard deviation of average viewers is about 8500 average viewers. The coefficients are less than one standard deviation of the actual data which tells us that the fitted model is a good prediction of the data.
+
+There are 3 languages that have more average viewers than English which are Spanish, Russian, and Arabic.
+
+## Question 6
+
+```{r}
+library(broom)
+
+Q6 <- augment(fit_lang)
+
+# glimpse our new data 
+glimpse(Q6)
+```
+
+```{r}
+ggplot(Q6, 
+       aes(x = average_viewers, 
+           y = .resid)) +
+  geom_jitter(alpha = 0.4) + 
+  geom_smooth(method = lm) +
+  theme_minimal() +
+  labs(subtitle = "Residual Plot from Average Viewers vs language", 
+       title = "Fitted Model and Raw Data", 
+       x = "Average Viewers", 
+       y = "Residuals", 
+       caption = "Source: twitch_data") +
+  scale_x_log10()
+```
+
+Our plot above shows the residuals for average viewers vs language. There are 2 points that do not fit in with the graph which are the two outliers from the same streamer that I identified previously. These two points are dota2ti in English and Russian. The points follow the fitted line towards the middle of the graph but as average viewers increases, the residuals begin to have a sharper increase as well.

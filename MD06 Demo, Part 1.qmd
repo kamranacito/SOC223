@@ -1,0 +1,88 @@
+---
+title: "MD06 Demo, Part 1"
+author: "Kamran Acito"
+format: html
+editor: visual
+embed-resources: true
+---
+
+```{r}
+#| message: false
+library(tidyverse)
+library(moderndive)
+library(ggthemes)
+library(patchwork)
+theme_set(theme_light())
+```
+
+```{r}
+data("evals")
+```
+
+```{r}
+d <- evals |>
+  rename(bty = bty_avg,
+         sex = gender)
+glimpse(d)
+```
+
+```{r}
+mod1 <- lm(score ~ bty,
+           data = d)
+get_regression_table(mod1)
+```
+
+```{r}
+ggplot(d,
+       aes(x = bty, y = score)) +
+  geom_jitter(alpha = .3) +
+  geom_smooth(method = "lm") +
+labs(x = "Beauty", y = "Evalutation")
+```
+
+```{r}
+mod1_preds <- get_regression_points(mod1)
+
+head(mod1_preds)
+```
+
+```{r}
+var_y <- d |>
+  pull(score) |>
+  var()
+var_y
+```
+
+```{r}
+ggplot(d,
+       aes(x = bty,
+           y = score)) +
+  geom_jitter(alpha = .3) +
+  geom_hline(yintercept = mean(d$score)) +
+labs(x = "Beauty",
+     y = "Evaluation")
+  
+```
+
+```{r}
+var_yhat1 <- mod1_preds |>
+  pull(residual) |>
+  var()
+var_yhat1
+```
+
+```{r}
+1 - (var_yhat1 / var_y)
+```
+
+```{r}
+broom::glance(mod1)
+moderndive::get_regression_summaries(mod1)
+```
+
+```{r}
+mod3 <- lm(score ~ bty + sex,
+           data = d)
+
+get_regression_table(mod3)
+```

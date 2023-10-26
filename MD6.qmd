@@ -1,0 +1,170 @@
+---
+title: "MD6"
+author: "Kamran Acito"
+format: html
+editor: visual
+embed-resources: true
+---
+
+```{r}
+#| message: false
+library(tidyverse)
+library(moderndive)
+library(ggthemes)
+library(patchwork)
+theme_set(theme_light())
+```
+
+```{r}
+# Read in the data 
+gender_employment <- read_csv("https://raw.githubusercontent.com/vaiseys/dav-course/main/Data/gender_employment.csv")
+
+# Glimpse at the data 
+glimpse(gender_employment)
+```
+
+```{r}
+gender_employment %>% 
+  ggplot(aes(x = year, y = wage_percent_of_male)) +
+  geom_jitter(alpha = 0.1) + 
+  geom_smooth(method = "lm") + 
+  labs(title = "Women's earnings with respect to men's", 
+       y = "% of Men's Income", 
+       x = "Year")
+```
+
+## Question 1
+
+We are going to compare our data to the following group:
+
+```{r}
+gender_employment <- gender_employment %>% 
+  mutate(major_category = as.factor(major_category), 
+         major_category = relevel(major_category, ref = "Management, Business, and Financial"))
+```
+
+```{r}
+model1 <-  lm(wage_percent_of_male ~ year,
+              data = gender_employment)
+broom::tidy(model1)
+```
+
+Every year, the wage percentage of males goes up by 20%
+
+```{r}
+parallel_model <- lm(wage_percent_of_male ~ year + major_category,
+                     data = gender_employment)
+broom::tidy(parallel_model)
+parallel_model
+```
+
+Now, lets calculate the wage percentage of male income for Sales and Office occupations on 2015.
+
+```         
+-306.7184 + 0.1922(2015) + 3.3261 = 83.8907%
+```
+
+The equation above considers the y-int -306.7184 and adds it to the slope .1922 coefficient multiplied by the year. Finally, we add teh major_categorySales adn Office coefficient.
+
+We can use this equation to calculate the wage percentage of male income for Service occupations on 2016.
+
+```         
+-306.7184 + 0.1922(2016) + 6.0770 = 86.8338%
+```
+
+## Question 2
+
+```{r}
+gender_employment %>% 
+  ggplot(aes(x = year, y = wage_percent_of_male)) +
+  geom_jitter(alpha = 0.1) + 
+  geom_smooth(method = "lm") + 
+  labs(title = "Women's earnings with respect to men's", 
+       y = "% of Men's Income", 
+       x = "Year") +
+  facet_wrap(~ major_category)
+```
+
+The parallel trends assumption is not warranted because there is a lot of discrepancy across industry categories.
+
+## Question 3
+
+```{r}
+model2 <-  lm(wage_percent_of_male ~ year + major_category +
+              year:major_category,
+              data = gender_employment)
+broom::tidy(model2)
+model2
+```
+
+This model includes the interaction between major_category and year. Now, slopes will differ across different categories.
+
+The estimate for "Computer, Engineering, and Science" for 2016 would be:
+
+```         
+ -1370.4719 + 0.7203(2016) + + 1002.8532317(1) - 0.4946783(2016)(1) = 87.14616
+```
+
+This means that our model estimates that 87.15 % of male income was comprised of Computer, Engineering, and Science Jobs in 2016.
+
+Now, lets estimate for services and compare.
+
+```         
+-1370.4719 + 0.7202561(2016) + 2137.6501474(1) - 1.0581075(2016)(1) = 86.06981
+```
+
+This means that our model estimates that 86.70% of male income came from service jobs in 2016. This means that the initial regression over estimates the value of wage percentage.
+
+## Question 4
+
+We can choose to build a model that assumes parallel trends for multiple reasons. If there is limited data, there could be large amounts of variability and the interaction between variables could be skewed. The parallel model also allows us to compare the basic relationship between variables to get more of a baseline outlook. Then, we can look at the regression.
+
+## Question 5
+
+We are now going to look at a model that incldees two continuous variables as explanatory variables.
+
+```{r}
+simple_fit <- lm(wage_percent_of_male ~ year,
+                 data = gender_employment)
+broom::tidy(simple_fit)
+```
+
+Based on the simple_fit model, for every one increase in year, the wage percent of males goes up by 0.2%
+
+Now, we're going to add a new variable percent_female which records what percentage of the workforce of a given occupation is made up of women.
+
+```{r}
+gender_employment %>% 
+  select(year, wage_percent_of_male, percent_female) %>% 
+  cor(use = "complete.obs")
+```
+
+The wage percent of males increases by 0.024% per year whereas the female workforce increase by a lower factor of .005%.
+
+Now, lets look at the relationship between year and the paygap conditional on the proportion of women who work.
+
+```{r}
+multiple_fit <- lm(wage_percent_of_male ~ year*percent_female,
+                   data = gender_employment)
+broom::tidy(multiple_fit)
+```
+
+This model shows that the proportion of women who work in an occupation is growing by 10% points per year. The other relationships have weak correlations nearing about 0.0.
+
+## Question 6
+
+R-squared compares the relationship between independent and dependent variables. More specifically, how much variation of a dependent variable is effected by the independent variable.
+
+Now, we are going to compare the R-squared for simple_fit and multiple_fit.
+
+```{r}
+simple_glanced <- broom::glance(simple_fit)
+simple_glanced$r.squared
+```
+
+```{r}
+multiple_glanced <- broom::glance(multiple_fit)
+multiple_glanced$r.squared
+```
+
+The R-squared value for multiple_fit regression is larger than the simple_fit regression. This means that a greater proportion of the dependent variable relies on the independent variable in the multiple_fit model compared to the simple_fit model. Therefore, the multiple model is more appropriate.

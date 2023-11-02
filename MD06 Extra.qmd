@@ -1,0 +1,205 @@
+---
+title: "MD06 Extra"
+author: "Kamran Acito"
+format: html
+editor: visual
+embed-resources: true
+---
+
+```{r}
+#| message: false
+library(tidyverse)
+library(moderndive)
+library(ggthemes)
+library(patchwork)
+theme_set(theme_minimal())
+```
+
+```{r}
+data(bikes, package = "bayesrules")
+glimpse(bikes)
+```
+
+## Question 0
+
+There are 500 rows in the data set.
+
+Each row represents a ride.
+
+The data set covers rides between January 1, 2011 and December 31, 2012.
+
+The highest observed ridership is 6946.
+
+The highest recorded wind speed is 34.00002.
+
+## Question 1
+
+```{r}
+get_correlation(rides ~ temp_feel,
+                data = bikes)
+```
+
+The correlation between rides temp_feel 0.58. This means that when what the temperature feels like (temp_feel) goes up by one standard deviation, we can expecet the number of rides ot increase by 0.58 of a standard deviation.
+
+Now, lets get the correlation betwen the number of rides and wind speed in mph.
+
+```{r}
+get_correlation(rides ~ windspeed,
+                data = bikes)
+```
+
+The correlation between number of rides and th windspeed in mph is ---0.19. This means that when the windspeed goes up by one standard deviation, we expect the number of rides to go down by 0.19 of a standard deviation.
+
+## Question 2
+
+Now, lets convert miles to kilometers.
+
+```{r}
+bikes <- bikes %>% 
+  mutate(wind_kph = windspeed * 1.61)
+```
+
+```{r}
+get_correlation(windspeed ~ wind_kph,
+                data = bikes)
+```
+
+The correlation between windspeed in MPH and KPH is exactly 1. This makes sense because we are only changing the units. Every KPH is 1.6 times of the corresponding MPH.
+
+This is the equation we use: $$ KPH = 1.61 (MPH) + 0$$
+
+The y-int is 0 because 0mi/hr equals 0km/hr
+
+## Question 3
+
+Now, we are going estimate two regressions by predicting rides as function of wind speed in both MPH and KPH.
+
+```{r}
+mph <- lm(rides ~ windspeed,
+                data = bikes)
+get_regression_table(mph) %>% 
+  select(term, estimate)
+```
+
+```{r}
+kph <- lm(rides ~ wind_kph,
+                data = bikes)
+get_regression_table(kph) %>% 
+  select(term, estimate)
+```
+
+The intercepts for both are the same at 4205.065. This means when variable for rides are equal to 0, we predict that the intercepts are the same because 0mph=0kph. The slopes are different because of the conversion between mph and kph.
+
+$$
+-55.523 / -34.48600 = 1.6100
+$$
+
+Using the equation above, we can predict that the coefficients for wind mph and kph is off by a factor of 1.61.
+
+## Question 4
+
+Now, lets fund the predicted ridership if the wind is blowing at 20 kph and mph.
+
+Predicted ridership for a day with 20mph:
+
+$$
+rides = 4205.065 - 34.486 (20MPH) = 3,515.345
+$$
+
+This means we would predict 3,515 riders for a day that has 20mph winds assuming we cannot have .345 of a rider.
+
+Predicted ridership for a day with 20kph:
+
+$$
+rides = 4205.065 - 55.523(20KPH) = 3094.605
+$$
+
+This means we would predict 3,095 riders on a 20kph day assuming we cannot have have .605 of a rider.
+
+This makes sense because 20mph is greater than 20kph meaning that it would have less ideal riding environment.
+
+## Question  5
+
+Lets do multiple regression now.
+
+```{r}
+bikes <- bikes %>% 
+  mutate(temp_c = (temp_feel-32)*(5/9))
+```
+
+To convert Fahrenheit to Celsius we use:
+
+$$C = (F-32) * \frac{5}{9}$$
+
+```{r}
+multiple <- lm(rides ~ wind_kph + temp_c,
+                 data = bikes)
+get_regression_table(multiple) %>% 
+  select(term, estimate)
+```
+
+For every 1 degree increase of Celsius, we can expect an increase of 143 in ridership. For every 1kph increase in wind speed, we can expect a decrease in 20 in ridership assuming we cannot have .842 of a rider. The intercept shows that expected ridership with no wind and a temperature of 0 degrees Celsius would be 942.
+
+## Question 6
+
+Now we are going to do regressions to predict:
+
+-   SITUATION 1: temp = 25C, wind = 15 KPH
+
+-   SITUATION 2: temp = 15C, wind = 5 KPH
+
+-   SITUATION 3: temp = 10C, wind = 40 KPH
+
+```{r}
+pred_df <- tibble(
+  situation = 1:3,
+  temp_c = c(25, 15, 10),
+  wind_kph = c(15, 5, 40)
+)
+
+pred_df$predicted_ridership <- predict(multiple, newdata = pred_df)
+print(pred_df)
+```
+
+For each situation, we can predict riderships of 4226, 2992, and 1581 riders respectively.
+
+## Question 7
+
+Now we are going to estimate a new model that uses weekend.
+
+```{r}
+bikes <- bikes %>% mutate(weekend = as.factor(weekend))
+weekend <- lm(rides ~ wind_kph + weekend + temp_c,
+                    data = bikes)
+get_regression_table(weekend) %>%
+  select(term, estimate)
+```
+
+Above, we can see the coefficients for weekend. This tells us that on the weekend, we can expect there to be 714 fewer riders than on a weekday. This could mean that there are more riders going to work.
+
+## Question 8
+
+Now we are going to predict that expected ridership on the weekend if the temperature and wind speed are average.
+
+```{r}
+library(ggeffects)
+predictions <- ggpredict(weekend,
+                         terms = c("weekend"),
+                         ci_level = NA)
+predictions
+```
+
+With average temperature and wind speed, the expected ridership for a weekend day is 2970 riders. On a weekday, the expected riders are 3683.
+
+## Question 9
+
+Now we are going to see how the model did at predicting each individual value of rides.
+
+```{r}
+rides <- predict(weekend)
+residuals <- bikes$rides - rides
+broom::tidy(residuals)
+residuals
+```
+
+The largest residual is on day 439 and it looked like the only in the 3000s with a value of 3490.34750. This means the model was most wrong on this day. The model was wrong here because according to the data, this prediction was on October 29, 2012 which was when Hurricane Sandy hit. There was an astounding 20 riders.

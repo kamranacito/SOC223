@@ -1,0 +1,13 @@
+---
+title: "Final Topic and Dataset"
+author: "Kamran Acito"
+format: html
+editor: visual
+embed-resources: true
+---
+
+## Final Project Topic and Dataset
+
+For my final project, I want to examine penalties for a soccer player/team. I want to include variables such as shot direction, shot power, number of run-up steps, preferred foot, etc. This will help answer the question, "How can I score the most effective penalty?".
+
+I was struggling to find data sets that match exactly what I am looking for. I looked through Opta and Statsbomb and found some potential ones. For example, there was a data set that looked at MLS penalty kick data. Opta also has data on penalty shootouts in the FIFA World Cup. Lastly, Professor Vaisy mentioned a data set that included a lot of women's soccer data which could be interesting to look at. These all seem like viable options, I just have to delve deeper to see which will work best.

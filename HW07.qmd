@@ -1,0 +1,158 @@
+---
+title: "HW07"
+author: "Kamran Acito"
+format: html
+editor: visual
+embed-resources: true
+---
+
+```{r}
+#| message: false
+library(tidyverse)
+library(here)
+library(moderndive)
+library(dplyr)
+library(ggplot2)
+theme_set(theme_minimal())
+
+nobel_winners <- read_csv("https://raw.githubusercontent.com/vaiseys/dav-course/main/Data/nobel_winners.csv")
+```
+
+```{r}
+nobel_winners_flt <- nobel_winners %>% 
+  filter(category != "Peace") %>% 
+  mutate(is_us = if_else(birth_country == "United States of America", 1, 0))
+```
+
+```{r}
+true_prop <- nobel_winners_flt %>% 
+  group_by(is_us) %>% 
+  summarise(prop = n()/nrow(nobel_winners_flt))
+
+ggplot() + 
+  coord_cartesian(xlim = c(0,1), ylim = c(0,1)) + 
+  geom_vline(xintercept = true_prop[2,2][[1]], linetype = "dashed")  + 
+  labs(x = "Proportion")
+```
+
+```{r}
+set.seed(33)
+# Random sample 
+our_sample <- sample_n(nobel_winners_flt, 
+                       size = 25, 
+                       replace = F)
+
+sample_prop <- our_sample %>% 
+  group_by(is_us) %>% 
+  summarise(prop = n()/nrow(our_sample))
+
+# How does our proportion look like? 
+ggplot() + 
+  coord_cartesian(xlim = c(0,1), ylim = c(0,1)) + 
+  geom_vline(xintercept = true_prop[2,2][[1]], linetype = "dashed")  + 
+  geom_vline(xintercept = sample_prop[2,2][[1]], linetype = "dotted", col = "red") +
+  labs(x = "Proportion")
+```
+
+## Question 1
+
+-   In this scenario, the scientific nobel prize winners are the population.
+
+-   The sampling frame is a 25 person sample from the population.
+
+-   The black line would represents the true proportion of Nobel Prize winners who were born in the US.
+
+-   The red line represents the sampled proportion of winners.
+
+## Question 2
+
+We are going to take repeated samples of differing sizes taking 50 samples of 25 winners.
+
+```{r}
+Q2 <- nobel_winners_flt %>%
+  rep_sample_n(size=25, reps=50)
+prop_sample <- Q2 %>% 
+  group_by(replicate) %>% 
+  summarise(prop = sum(is_us)/25)
+```
+
+Now, lets plot the data including the mean proportion of the samples and the true proportion as calculated above.
+
+```{r}
+ggplot() + 
+  coord_cartesian(xlim = c(0,1), ylim = c(0,1)) + 
+  geom_vline(xintercept = mean(nobel_winners_flt$is_us), linetype = "dashed")  + 
+  geom_vline(xintercept = mean(prop_sample$prop), linetype = "dotted", col = "red") +
+  labs(x = "Proportion")
+```
+
+## Question 3
+
+Now, we are going to take 50 samples of 100 samples each.
+
+```{r}
+Q3 <- nobel_winners_flt %>%
+  rep_sample_n (size=100, reps=50)
+prop_sample2 <- Q3 %>% 
+  group_by(replicate) %>% 
+  summarise(prop = sum(is_us)/100)
+```
+
+Lets plot the results
+
+```{r}
+ggplot() + 
+  coord_cartesian(xlim = c(0,1), ylim = c(0,1)) + 
+  geom_vline(xintercept = mean(nobel_winners_flt$is_us), linetype = "dashed")  + 
+  geom_vline(xintercept = mean(prop_sample2$prop), linetype = "dotted", col = "red") +
+  labs(x = "Proportion")
+```
+
+The bigger sample will have less variance because more data points leads to a more accurate estimate.
+
+## Question 4
+
+Now, we are going to calculate the standard deviation using sample sizes of 25 and 100.
+
+```{r}
+sd_25 <- sd(prop_sample$prop)
+
+sd_25
+```
+
+```{r}
+sd_100 <- sd(prop_sample2$prop)
+
+sd_100
+```
+
+This does support my argument because the larger sample size has a smaller standard deviation meaning that there is less variance.
+
+## Question 5
+
+Now, we are going to repeat the processes above in order to find the proportion of women who have been awarded the Nobel Prize.
+
+```{r}
+np_women <- nobel_winners_flt %>%
+   mutate(is_f = if_else(gender == "Female", 1, 0))
+Q5 <- np_women %>%
+  rep_sample_n(size=100, reps=50)
+prop_sample3 <- Q5 %>% 
+  group_by(replicate) %>% 
+  summarise(prop = sum(is_f)/100)
+prop_women <- np_women %>% 
+  group_by(is_f) %>% 
+  summarise(prop = n()/nrow(nobel_winners_flt))
+```
+
+```{r}
+ggplot() + 
+  coord_cartesian(xlim = c(0,1), ylim = c(0,1)) + 
+  geom_vline(xintercept = prop_women[2,2][[1]], linetype = "dashed")  + 
+  geom_vline(xintercept = prop_sample3[2,2][[1]], linetype = "dotted", col = "red") +
+  labs(x = "Proportion")
+```
+
+## Question 6
+
+From my understanding., the Central Limit Theorem states that a higher number of samples from a given population will lead to a more normal distribution. The samples will be closer to the mean creating less variance. Because we never know the true proportion of a population, we can make inferences/assumptions using the Central Limit Theorem.

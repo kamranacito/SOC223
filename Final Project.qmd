@@ -1,0 +1,394 @@
+---
+title: "Final Project"
+author: "Kamran Acito"
+format: html
+editor: visual
+embed-resources: true
+echo: false
+---
+
+```{r}
+#| message: false
+library(tidyverse)
+library(moderndive)
+library(ggthemes)
+library(patchwork)
+library(car)
+theme_set(theme_light())
+```
+
+```{r}
+#| message: false
+library(readr)
+bundesliga_data <- read_csv("soc223/bundesliga_player.csv")
+bundesliga_data <- bundesliga_data |>
+  mutate(log_price = log(price))
+view(bundesliga_data)
+```
+
+# Predictive Factors of Market Value in the Bundesliga
+
+# 1. Introduction
+
+In the dynamic world of soccer, the market value of players plays a pivotal role in shaping the environment and perception of the sport. The Bundesliga, renowned for its competitive nature and the development of exceptional talent, stands as an interesting case study for understanding the factors that influence player market values. This analysis looks into the different dimensions of player valuation, exploring how age and height based on position affect the financial worth of footballers in Germany's top-tier league. 
+
+Age is a fundamental aspect of a player's career trajectory and is often regarded as a key determinant in market valuation. The Bundesliga is known for fostering young talents which presents an intriguing scenario where youthfulness might be highly prized. Conversely, the league also has seasoned players who bring experience and leadership to the field, adding a layer of complexity to the evaluation process.
+
+Height is an often overlooked factor in football analysis and can influence a player's market value, particularly in positions where physicality is paramount. This study examines whether taller players, traditionally goalkeepers and defenders associated with dominance in aerial duels or goalkeeping, command higher valuations in the Bundesliga. Or, if shorter players, able to utilize their low centers of gravity are more valued in the modern game.
+
+Soccer is one of the few sports where there are wide varieties of ages and body types. Teams also tend to prefer experienced players in defense which would lead to older players being valued more in those positions. That being said, can age and height be predictors of price based on position?
+
+# 2. Exploratory Data Analysis
+
+There are 515 players across 18 different teams which are being analyzed. All players recorded a height and age so all players were considered to complete the table of 515 players. The mean for the price of players across the Bundesliga is 8.483 million Euros with a standard deviation of 14.65 million euros.
+
+Lets look at the summary statistics across all Bundesliga players:
+
+```{r}
+#| message: false
+summary_stats <- bundesliga_data |>
+  select(age, height, price, log_price) 
+knitr::kable(summary(summary_stats))
+```
+
+```{r}
+bundesliga_attackers <- bundesliga_data |>
+  filter(grepl("Attack", position))
+
+bundesliga_midfielders <- bundesliga_data |>
+  filter(grepl("midfield", position))
+
+bundesliga_defenders <- bundesliga_data |>
+  filter(grepl("Defender", position))
+
+bundesliga_goalkeepers <- bundesliga_data |>
+  filter(grepl("Goalkeeper", position))
+```
+
+```{r}
+positional <- bundesliga_data %>%
+  mutate(grouped_position = case_when(
+    grepl("Defender", position) ~ "Defender",
+    grepl("midfield", position) ~ "Midfielder",
+    grepl("Attack", position) ~ "Attacker",
+    TRUE ~ position))
+```
+
+```{r}
+
+bundesliga_attackers <- bundesliga_attackers |>
+  mutate(log_price = log(price))
+
+bundesliga_midfielders <- bundesliga_midfielders |>
+  mutate(log_price = log(price))
+
+bundesliga_defenders <- bundesliga_defenders |>
+  mutate(log_price = log(price))
+  
+bundesliga_goalkeepers <- bundesliga_goalkeepers |>
+  mutate(log_price = log(price))
+  
+positional <- positional |>
+  mutate(log_price = log(price))
+```
+
+```{r}
+#| message: false
+#| warning: false
+ggplot(data = bundesliga_data, mapping = aes(x = log_price)) +
+  geom_histogram(fill = "skyblue", color = "white") +
+  labs(title = "Price Distribution of Bundesliga Players", x = "Log Price", y = "Count")
+```
+
+After initially taking the price distribution of player prices in the Bundesliga, the data presented a right skew. In order to create a regression model, there needs to be a normal distribution. Taking the log of our "price" variable allows for a normal distribution of price. The range of log price is -3.6889 to 4.7875 with a mean log price of 1.1746. Converting our log prices into standard prices, our range of prices is 0.025 to 120.000 million euros with a mean price of 8.483 million euros.
+
+Converting log price into standard price was calculated by
+
+$$
+log(price) = x
+$$
+
+$$
+price = e^x
+$$
+
+```{r}
+#| message: false
+ggplot(data = bundesliga_data, mapping = aes(x = age)) +
+  geom_histogram(fill = "skyblue", color = "white") +
+  labs(title = "Age Distribution of Bundesliga Players", x = "Age", y = "Count")
+```
+
+Above is a histogram that presents the age distribution of all players of players in the Bundesliga. Age ranges from 17 to 39 with an average age of 25.68.
+
+```{r}
+#| message: false
+ggplot(data = bundesliga_data, mapping = aes(x = height)) +
+  geom_histogram(fill = "skyblue", color = "white") +
+  labs(title = "Height Distribution of Bundesliga Players", x = "Height", y = "Count")
+```
+
+Above is a histogram that presents the height distribution of all players in the Bundesliga. Height ranges from 1.680m to 2.000m with a mean height of 1.848m.
+
+Now, lets examine the age and height variables in relation to price across all players as well as broken down by position.
+
+```{r}
+#| message: false
+#| warning: false
+ggplot(data = bundesliga_data, aes(x = age, y = log_price)) +
+  geom_point(color = "lightblue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Scatter Plot of Age vs. Log Price", x = "Age", y = "Log Price") 
+```
+
+Above is a scatterplot that represents the relationship between log price and age across all players. There is no clear relationship between log price and age. As age increases, log price neither increases nor decreases.
+
+```{r}
+#| message: false
+#| warning: false
+ggplot(data = bundesliga_data, aes(x = height, y = log_price)) +
+  geom_point(color = "lightblue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Scatter Plot of Height vs. Log Price", x = "Height", y = "Log Price")
+```
+
+Above is a graph that represents the relationship between height and log price across all players. There is a negative relationship between height and log price. As height increases, log price decreases suggesting that taller players are not valued as highly.
+
+```{r}
+positional <- bundesliga_data %>%
+  mutate(grouped_position = case_when(
+    grepl("Defender", position) ~ "Defender",
+    grepl("midfield", position) ~ "Midfielder",
+    grepl("Attack", position) ~ "Attacker",
+    TRUE ~ position))
+```
+
+Lets look at the summary statistics for age, height, and price, and log price per position. The table displays in the following order: Goalkeeper, Defender, Midfielder, and Attacker.
+
+```{r}
+#| warning: false
+#| message: false
+gk_summary_stats <- positional %>%
+  select(age, height, log_price, price, grouped_position) %>%
+  filter(grouped_position == "Goalkeeper")
+
+knitr::kable(summary(gk_summary_stats))
+
+defender_summary_stats <- positional %>%
+  select(age, height, log_price, price, grouped_position) %>%
+  filter(grouped_position == "Defender")
+
+knitr::kable(summary(defender_summary_stats))
+
+midfielder_summary_stats <- positional %>%
+  select(age, height, log_price, price, grouped_position) %>%
+  filter(grouped_position == "Midfielder")
+
+knitr::kable(summary(midfielder_summary_stats))
+
+attacker_summary_stats <- positional %>%
+  select(age, height, log_price, price, grouped_position) %>%
+  filter(grouped_position == "Attacker")
+
+knitr::kable(summary(attacker_summary_stats))
+```
+
+```{r}
+#| warning: false
+ggplot(data = positional,
+       mapping = aes(x = height, y = log_price)) +
+  geom_jitter(color = "lightblue", alpha = 0.5) +
+  facet_wrap(~ grouped_position) +
+  labs(title = "Scatter Plot of Height vs. Log Price per Position", x = "Height", y = "Log Price")
+```
+
+Above is a graph that compares height and log price per position. Goalkeepers have a higher average height at 1.913 compared to defenders, midfielders, and attackers with average heights of 1.85, 1.823, and 1.838 respectively.
+
+```{r}
+#| warning: false
+ggplot(data = positional,
+       mapping = aes(x = age, y = price)) +
+  geom_jitter(color = "lightblue", alpha = 0.5) +
+  facet_wrap(~ grouped_position) +
+  labs(title = "Scatter Plot of Age vs. Log Price per Position", x = "Age", y = "Log Price")
+```
+
+Above is a graph that compares the age and price of players per position. Goalkeepers have a higher average age of 27.16 years of age compared to defenders, midfielders, and attackers who have average ages of 25.76, 25.01, and 25.53 years old.
+
+# 3. Multiple Linear Regression
+
+## 3.1 Regression Method
+
+Components of the Multiple Linear Regression
+
+-   Outcome variable: **y** = log price of players
+
+-   Numerical explanatory variables: **x~1~** = Age, **x~2~** = Height
+
+-   Categorical explanatory variable: **x~3~** = Grouped Position
+
+The unit of analysis is one player where each data point represents a different Bundesliga player. Although we explored how data and price affect our whole data frame including all Bundesliga players, only a regression model for each position is being performed to answer our initial question of how age and height affects player prices per position.
+
+## 3.2 Model Results
+
+The model results show up in order of Goalkeepers, Defenders, Midfielders, and Attackers
+
+```{r include=FALSE}
+#| message: false
+model1 <- lm(log_price ~ age + height, data = bundesliga_goalkeepers)
+summary(model1)
+confint(model1)
+
+model2 <- lm(log_price ~ age + height, data = bundesliga_defenders)
+summary(model2)
+confint(model2)
+
+model3 <- lm(log_price ~ age + height, data = bundesliga_midfielders)
+summary(model3)
+confint(model3)
+
+model4 <- lm(log_price ~ age + height, data = bundesliga_attackers)
+summary(model4)
+confint(model4)
+```
+
+```{r}
+knitr::kable(get_regression_table(model1))
+knitr::kable(get_regression_table(model2))
+knitr::kable(get_regression_table(model3))
+knitr::kable(get_regression_table(model4))
+```
+
+## 3.3 Interpreting the Regression Table
+
+**Goalkeepers:**
+
+1.  **Age (0.07380):**
+
+    -   For each additional year of age, the estimated log price increases by 0.07380. Converting the log price to standard price results in an increase of 1.077 million Euros for each additional year. The coefficient is statistically significant (p-value of 0.0122).
+
+2.  **Height (-5.70623):**
+
+    -   For each additional unit of height, the estimated log price decreases by 5.70623. Converting the log price to standard price results in a decrease of 300 million Euros for each additional unit of height. The coefficient is not statistically significant (p-value = 0.2033).
+
+**Defenders:**
+
+1.  **Age (-0.00163):**
+
+    -   For each additional year of age, the estimated log price decreases by 0.00163. Converting the log price to standard price results in a decrease of 1.002 million Euros for each additional year. The coefficient is not statistically significant (p-value = 0.9466).
+
+2.  **Height (3.35848):**
+
+    -   For each additional unit of height, the estimated log price increases by 3.35848. Converting the log price to standard price results in an increase of 28.745 million Euros for each additional unit of height. The coefficient is statistically significant (p-value = 0.0503).
+
+**Midfielders:**
+
+1.  **Age (0.01050):**
+
+    -   For each additional year of age, the estimated log price increases by 0.01050. Converting the log price to standard price results in an increase of 1.011 million Euros for each additional year. The coefficient is not statistically significant (p-value = 0.681).
+
+2.  **Height (2.46743):**
+
+    -   For each additional unit of height, the estimated log price increases by 2.46743. Converting the log price to standard price results in an increase of 11.792 million Euros for each additional unit of height. The coefficient is not statistically significant (p-value = 0.299).
+
+**Attackers:**
+
+1.  **Age (0.008576):**
+
+    -   For each additional year of age, the estimated log price increases by 0.008576. Converting the log price to standard price results in an increase of 1.009 million Euros for each additional year. The coefficient is not statistically significant (p-value = 0.7008).
+
+2.  **Height (-2.53662):**
+
+    -   For each additional unit of height, the estimated log price decreases by 2.53662. Converting the log price to standard price results in a decrease of 12.599 million Euros for each additional unit of height. The coefficient is not statistically significant (p-value = 0.1562).
+
+## 3.4 Inference for Multiple Regression (Confidence Intervals)
+
+Using a 95% Confidence Interval, our null hypotheses state that there is no relationship between age and price as well as height and price.
+
+**Goalkeepers:**
+
+The confidence interval for age (0.0167, 0.1309) does not include zero, indicating statistical significance. The interval for height (-14.5745, 3.1621) includes zero, indicating lack of statistical significance.
+
+**Defenders:**
+
+The confidence interval for age (-0.045, 0.046) includes zero, indicating lack of statistical significance. The interval for height (0.0049, 6.7218) does not include zero, indicating statistical significance.
+
+**Midfielders:**
+
+The confidence interval for age (-0.034, 0.061) includes zero, indicating lack of statistical significance. The interval for height (-2.209, 7.143) includes zero, indicating lack of statistical significance.
+
+**Attackers:**
+
+The confidence interval for age (-0.035, 0.052) includes zero, indicating lack of statistical significance. The interval for height (-6.052, 0.979) includes zero, indicating lack of statistical significance.
+
+**Summary:** Age seems to have a statistically significant positive effect on log prices for goalkeepers. For defenders, height appears to have a statistically significant positive effect on log prices. The models for midfielders and attackers show no statistically significant effects for age or height.
+
+## 3.5 Residual Analysis
+
+Residual Analysis was conducted to see if there were systematic patterns. The following residual graphs represent each model.
+
+```{r}
+#| message: false
+model1 |> 
+  ggplot(aes(x = log_price, 
+             y = .resid)) +
+  geom_jitter(alpha = 0.4) + 
+  geom_smooth(method = lm, color = "lightblue") +
+  theme_minimal() +
+  labs(title = "Scatterplot of Residuals against Log Price for Goalkeepers", x = "Log Price", y = "Residual")
+```
+
+```{r}
+#| message: false
+model2 |> 
+  ggplot(aes(x = log_price, 
+             y = .resid)) +
+  geom_jitter(alpha = 0.4) + 
+  geom_smooth(method = lm, color = "lightblue") +
+  theme_minimal() +
+  labs(title = "Scatterplot of Residuals against Log Price for Defenders", x = "Log Price", y = "Resiudal")
+```
+
+```{r}
+#| message: false
+model3 |> 
+  ggplot(aes(x = log_price, 
+             y = .resid)) +
+  geom_jitter(alpha = 0.4) + 
+  geom_smooth(method = lm, color = "lightblue") +
+  theme_minimal() +
+  labs(title = "Scatterplot of Residuals against Log Price for Midfielders", x = "Log Price", y = "Resiudal")
+```
+
+```{r}
+#| message: false
+model4 |> 
+  ggplot(aes(x = log_price, 
+             y = .resid)) +
+  geom_jitter(alpha = 0.4) + 
+  geom_smooth(method = lm, color = "lightblue") +
+  theme_minimal() +
+  labs(title = "Scatterplot of Residuals against Log Price for Attackers", x = "Log Price", y = "Resiudal")
+```
+
+According to the systematic patterns of residuals, Age and Height are not good linear predictors of price.
+
+# 4. Discussion
+
+## 4.1 Conclusions
+
+This analysis aimed to understand the factors influencing player market values in the Bundesliga, focusing on the impact of age and height, both overall and based on player positions. The exploratory data analysis revealed that height has a wider distribution to age. While there is a slight positive trend between age and price, the impact of height is less apparent with a negative relationship in the regression model. Goalkeepers had the higher heights compared to the other positions, but the regression analysis revealed that age and height were not strong linear predictors of price. These variables only showed significant positive effect with age on the prices of goalkeepers and height for the prices of defenders. The outcomes of this analysis are a testament to the variety of players in soccer suggesting that there is opportunity to be a successful player regardless of age or height.
+
+## 4.2 Limitations
+
+This analysis identified associations between age, height, and player prices, but causation cannot be established. Other unexplored characteristics within soccer such as team or nationality can influence player prices tremendously. This data set was limited to the Bundesliga so results should not be extended to other leagues where height and age may vary differently.
+
+## 4.3 Further Questions
+
+If I were to continue researching the affects of price on Bundesliga players, I would like to explore non-linear relationships which might reveal different patterns. Additionally I could measure the interaction affects between age and height to see if the impact of one variable depends on the level of another. In another analysis, I would also include other variables such as nationality, club, or even market demand to see these affects on prices of players. Lastly, prices are always interesting to look at over periods of time. Exploring these variables as they relate to price over time could lead to patterns on how the game has evolved and whether certain variables are valued more in the modern game.
+
+# Sources
+
+"Football/Soccer \| Bundesliga Player Database." Accessed December 4, 2023. https://www.kaggle.com/datasets/oles04/bundesliga-soccer-player.
+
+<https://library.virginia.edu/data/articles/interpreting-log-transformations-in-a-linear-model>
